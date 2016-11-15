@@ -1,0 +1,62 @@
+---
+title: "Questions, ideas and plan"
+output: html_notebook
+---
+
+Q
+1. Can random forest apply nonlinear relationships between predictor variables?
+2. Is it possible to have a confidence in result?
+
+I
+1. try to find correlation between aboveSMA and Volatility on different number of days. May not be linear so nonlinear transform may do. Check out least square regression too. Once found we may try to multiply relevant aboveSma times 1/volatility. Correlated variables should'n both participate in the model.
+
+2. Try boruta feature selection method
+
+3. Try xgboost
+
+4. See where the model performs best. Stong volatility or low, wide angles or acute. Try to drop worse 25%. Or build another forest predicting where machine will fail. Or probably logistic regression will fit well to show where to predict and where to not. Need to plot first.
+
+5. Implement parameter walker
+
+6. Use angles with good old brute forcer
+
+7. Research cloud running options
+
+8. Try to run on Azure Ubuntu VM. Compare performance with local. Then try AWS 64 cores.
+9. Setup RStudio Server yourself on the free AWS 1 core instance
+10. Compare random forest performance
+11. Try xgboost
+
+L
+1. Print out Azure ML cheat sheet. It shows all the alrorithms I need to know/try to start with.
+
+
+```{r}
+plot(cars)
+```
+
+*** RECORD SO FAR ***
+importantColumns <- c("volatil.290", "sma.angle.290", "volatil.90", "sma.angle.90")
+trainingSet2 <- prepareTrainingSetByCols(trainingSet, trainingSet$trade.580, importantColumns)
+trainingSetList2 <- prepareTrainingSet(trainingSet2, trainingSet2$Trade, testSample = 0.2)
+rfModel2 <- randomForest(Trade ~ ., data = trainingSetList2[[1]], ntree = 1000, importance = TRUE, sampsize = 10000, nodesize = 28)
+
+       OOB estimate of  error rate: 25.63%
+Confusion matrix:
+      -580   580 class.error
+-580 20950  7945   0.2749611
+580   6261 20267   0.2360148
+
+> predictionTable2
+       predicted2
+actual2 -580  580
+   -580 3303 3354
+   580  3184 4016
+> selRatio2
+[1] 0.5091722
+> buyRatio2
+[1] 0.5449118
+> buyDiff2
+[1] 0.02531882
+
+*** RECORD SO FAR ***
