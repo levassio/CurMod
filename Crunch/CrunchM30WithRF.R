@@ -21,7 +21,7 @@ trainingSetList <- prepareTrainingSet(trainingSet, trainingSet$trade.580, testSa
 #print(Sys.time())
 #test speed
 
-system.time(rfModel <- randomForest(Trade ~ ., data = trainingSetList[[1]], ntree = 50, importance = TRUE, sampsize = 5000, nodesize = 100))
+system.time(rfModel <- randomForest(Trade ~ ., data = trainingSetList[[1]], ntree = 150, importance = TRUE, sampsize = 5000, nodesize = 100))
 print(rfModel)
 
 imp <- importance(rfModel)

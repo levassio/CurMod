@@ -60,3 +60,10 @@ actual2 -580  580
 [1] 0.02531882
 
 *** RECORD SO FAR ***
+
+*** SPEED ***
+c4.8xlarge
+> system.time(rfModel <- randomForest(Trade ~ ., data = trainingSetList[[1]], ntree = 150, importance = TRUE, sampsize = 5000, nodesize = 100))
+   user  system elapsed 
+102.296   0.272 102.545 
+*** SPEED ***
