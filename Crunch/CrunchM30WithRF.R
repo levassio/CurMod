@@ -1,4 +1,5 @@
-loadFromWeb("https://dl.dropboxusercontent.com/u/30352637/TrainingData/EURUSDm30_trade_150_1000_10.rda")
+con <- url("https://dl.dropboxusercontent.com/u/30352637/TrainingData/EURUSDm30_trade_150_1000_10.rda")
+load(con)
 
 library(randomForest)
 #trainingSet <- EURUSD_m5_Trades_1000_40_20
