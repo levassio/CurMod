@@ -1,3 +1,8 @@
+loadFromWeb <- function(webPath){
+  con <- url(webPath)
+  load(con)
+}
+
 funOmitNA = function(x) {
   drop = FALSE
   n = ncol(x)
