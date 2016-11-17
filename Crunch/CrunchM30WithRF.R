@@ -2,6 +2,7 @@ con <- url("https://dl.dropboxusercontent.com/u/30352637/TrainingData/EURUSDm30_
 load(con)
 
 library(randomForest)
+library(foreach)
 #trainingSet <- EURUSD_m5_Trades_1000_40_20
 trainingSet <- EURUSDm30_trade_150_1000_10
 
@@ -21,7 +22,9 @@ trainingSetList <- prepareTrainingSet(trainingSet, trainingSet$trade.580, testSa
 #print(Sys.time())
 #test speed
 
-system.time(rfModel <- randomForest(Trade ~ ., data = trainingSetList[[1]], ntree = 150, importance = TRUE, sampsize = 5000, nodesize = 100))
+system.time(rfModel <- randomForest(Trade ~ ., data = trainingSetList[[1]], ntree = 100, importance = TRUE, sampsize = 5000, nodesize = 100))
+
+#system.time(rfModels <- foreach(ntree=rep(25, 4)) %do% randomForest(Trade ~ ., data = trainingSetList[[1]], ntree = ntree, importance = TRUE, sampsize = 5000, nodesize = 100))
 print(rfModel)
 
 imp <- importance(rfModel)
