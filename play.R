@@ -1,24 +1,17 @@
-no_cores <- detectCores()
-cl <- makeCluster(no_cores)
-system.time(parLapply(cl, X = rep(1000000, 320), sieve))
-stopCluster(cl)
+tunesPopulation <- expand.grid(
+  trade = seq(150, 1000, 10),
+  sampSize = seq(3000, 50000, 500),
+  minNode = seq(5, 100, 1),
+  buyScore = NA,
+  selScore = NA,
+  runCount = 0
+)
 
-system.time(foreach(nn=rep(1000000, 1)) %do% sieve(nn))
+tunesPopulation$index <- 1:nrow(tunesPopulation)
 
+print.size(tunesPopulation)
 
+tunesSample <- sampleDF(tunesPopulation, 20)
 
+tuned <- crunchTunes(EURUSDm30_trade_150_1000_10, tunesSample, progressSteps = 5)
 
-sieve <- function(n)
-{
-  n <- as.integer(n)
-  
-  primes <- rep(TRUE, n)
-  primes[1] <- FALSE
-  last.prime <- 2L
-  for(i in last.prime:floor(sqrt(n)))
-  {
-    primes[seq.int(2L*last.prime, n, last.prime)] <- FALSE
-    last.prime <- last.prime + min(which(primes[(last.prime+1):n]))
-  }
-  which(primes)
-}

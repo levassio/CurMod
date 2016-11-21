@@ -9,6 +9,7 @@ funOmitNA = function(x) {
 reportProgress <- function(current, total, ..., step = 1, startTime = NA){
   
   if(total >= 100){
+    
     one <- total %/% (100 / step)
     reminder <- (current - 1) %% one
     
@@ -31,6 +32,12 @@ reportProgress <- function(current, total, ..., step = 1, startTime = NA){
         
       }
     }
+  } else {
+    currentTime <- Sys.time()
+    secPerOne <- difftime(currentTime, startTime, units = "secs") / current
+    eta <- currentTime + (total - current) * secPerOne
+    
+    print(paste(format(Sys.time(), "%H:%M:%OS3"), paste(current, "/", total, sep = ""), "secPerMil:", round(secPerOne * 1000000, digits = 2), "eta:", format(eta, "%H:%M:%S"),  paste(...)))
   }
 }
 
@@ -69,4 +76,56 @@ intDateRange <- function(x, rangeStart, rangeEnd = NA){
   print(tail(res$Date, 1))
   
   res
+}
+
+finish <- function(x){
+  print.size(x)
+  #  setDT(x)
+  x
+}
+
+print.size <- function(x){
+  print(format(object.size(x), units = "Mb"))
+}
+
+prepareTrainingSet <- function(x, tradeColumn, testSample = .2){
+  
+  tradeColumn <- as.factor(tradeColumn)
+  
+  x$Date <- NULL
+  x$Open <- NULL
+  x$High <- NULL
+  x$Low <- NULL
+  x$Close <- NULL
+  x$Volume <- NULL
+  
+  x[, grepl("trade.*", names(x))] <- NULL
+  x[, grepl("life.*", names(x))] <- NULL
+  
+  x$Trade <- tradeColumn
+  
+  x <- funOmitNA(x)
+  
+  l <- nrow(x)
+  
+  testSampleStart <- l - (l * testSample)
+  testSample <- testSampleStart:l
+  
+  testX <- x[testSample,]
+  trainX <- x[-testSample,]
+  
+  res <- list(trainX, testX)
+  res
+}
+
+prepareTrainingSetByCols <- function(x, tradeColumn, importantColumns){
+  tradeColumn <- as.factor(tradeColumn)
+  
+  x <- x[, importantColumns]
+  x$Trade <- tradeColumn
+  x
+}
+
+sampleDF <- function(x, size){
+  x[sample(nrow(x), size), ]
 }
