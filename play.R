@@ -20,7 +20,7 @@ tunesPopulation$index <- 1:nrow(tunesPopulation)
 
 print.size(tunesPopulation)
 
-tunesSample <- sampleDF(tunesPopulation, 40)
+tunesSample <- sampleDF(tunesPopulation, 4000)
 
 tuned <- crunchTunes(EURUSDm30_trade_150_1000_10, tunesSample)
 

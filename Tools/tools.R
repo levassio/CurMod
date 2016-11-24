@@ -8,7 +8,7 @@ funOmitNA = function(x) {
 
 reportProgress <- function(current, total, ..., step = 1, startTime = NA){
   
-  if(total >= 100){
+  if(total >= 10000){
     
     one <- total %/% (100 / step)
     reminder <- (current - 1) %% one
