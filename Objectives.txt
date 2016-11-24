@@ -1,0 +1,20 @@
+Objectives
+
+1. Increase core load, rerun more forests, rerun good forests multiple times for better confidence, think of applying GA to mutate forests
+
+***
+Load balancing seems achieved with iterators
+Now need to get rid of outer loop and add progress tracker to the foreach
+***
+
+2. Investigate how does the smaller amount of trees affect variance. Does n times more trees equate to n forests combined? Probably forests can be run with less trees, then you redo good runs and reduce variance to the level as if you had run it with many trees.
+
+3. Investigate how sample size affects variance. Probably it makes sense to have number of trees proportional to sample size so that observations had a fixed chance of participation.
+
+4. Sample is normally taken randomly. Maybe it’s worth to take consecutive parts of the population as samples. But so that middle part of the population didn’t have higher participation. i.e 123, 234, 345, 456, 567, 671, 712. This way every tree will be closer to reality where it’s only adapted to particular market conditions. And for every vote there are more trees voting which have not seen the data rather than ones which have seen it. Like above 1 was only by 3 trees and unseen by 4. 
+
+5. 1000 run shows trade should be 340-560, sampSize 13000-48500, minNode 14-99
+this reduces tunesPopulation from 784320 to 142416.
+Need to run here.
+
+6.

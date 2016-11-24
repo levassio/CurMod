@@ -1,11 +1,13 @@
-crunchTunes <- function(x, tunesPopulation, nVector = seq(2,100,2), progressSteps = 20){
+crunchTunes <- function(x, tunesPopulation, nVector = seq(2,100,2)){
   
   startTime <- Sys.time()
-  smpSize <- nrow(tunesPopulation)/progressSteps
+  smpSize <- nrow(tunesPopulation)
   print(paste("smpSize", smpSize))
   
   library(foreach)
-  library(doParallel)
+  library(doSNOW)
+#  library(doParallel)
+  library(iterators)
   
   trainingSet <- x
   
@@ -15,40 +17,34 @@ crunchTunes <- function(x, tunesPopulation, nVector = seq(2,100,2), progressStep
   trainingSet <- adjustByVolatility(trainingSet, nVector, newAdjusteeName = "aboveSMAAD")
 #  trainingSet <- adjustByVolatility(trainingSet, nVector)
   
-  cores <- detectCores()  
-  registerDoParallel(cores)
-  indexes <- tunesPopulation$index
+  cores <- detectCores()
+  cl <- makePSOCKcluster(cores, outfile = "")
+  registerDoSNOW(cl)
+#  registerDoParallel(cl)
   
-  for(i in 1:progressSteps){
-    smpStart <- 1*i
-    smpEnd <- smpStart + smpSize
+  clusterExport(cl, c("crunchRF", "prepareTrainingSet", "prepareTrainingSetByCols", "funOmitNA"))
     
-    smp <- tunesPopulation[smpStart:smpEnd,]
+  res <- foreach(ind = iter(1:nrow(tunesPopulation)), .packages = c("randomForest")) %dopar% crunchRF(ind, tunesPopulation, trainingSet)
     
-    res <- foreach(ind = 1:smpSize) %do% crunchRF(ind, smp, trainingSet)
-    
-    for(j in res) {
-      tunesPopulation[tunesPopulation$index == j[1], 4:6] <- j[2:4]
-    }
-    
-    reportProgress(i, progressSteps, startTime = startTime)
+  for(j in res) {
+    tunesPopulation[tunesPopulation$index == j[1], 4:6] <- j[2:4]
   }
   
-  stopImplicitCluster()
+  stopCluster(cl)
   
   tunesPopulation
 }
 
-crunchRF <- function(ind, smp, trainingSet){
+crunchRF <- function(ind, tunesPopulation, trainingSet){
   
-  cs <- smp[ind,]
+  print(ind)
+  cs <- tunesPopulation[ind,]
   
   trainingSetList <- prepareTrainingSet(trainingSet, trainingSet[,paste("trade", cs[1], sep = ".")], testSample = 0.2)
   trainData <- trainingSetList[[1]]
   testData <- trainingSetList[[2]]
   
-  library(randomForest)
-  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = 100, sampsize = as.integer(cs[2]), nodesize = as.integer(cs[3]))
+  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = 10, sampsize = as.integer(cs[2]), nodesize = as.integer(cs[3]))
   
   predicted <- predict(rfModel, newdata = testData)
   predictionTable <- table(testData$Trade, predicted)
