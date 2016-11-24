@@ -20,7 +20,8 @@ tunesPopulation$index <- 1:nrow(tunesPopulation)
 
 print.size(tunesPopulation)
 
-tunesSample <- sampleDF(tunesPopulation, 20)
+tunesSample <- sampleDF(tunesPopulation, 40)
 
 tuned <- crunchTunes(EURUSDm30_trade_150_1000_10, tunesSample)
 
+#iRich crunches 40 50tree forests in 10 min

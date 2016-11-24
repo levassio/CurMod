@@ -1,12 +1,10 @@
 crunchTunes <- function(x, tunesPopulation, nVector = seq(2,100,2)){
   
-  startTime <- Sys.time()
   smpSize <- nrow(tunesPopulation)
   print(paste("smpSize", smpSize))
   
   library(foreach)
   library(doSNOW)
-#  library(doParallel)
   library(iterators)
   
   trainingSet <- x
@@ -20,31 +18,29 @@ crunchTunes <- function(x, tunesPopulation, nVector = seq(2,100,2)){
   cores <- detectCores()
   cl <- makePSOCKcluster(cores, outfile = "")
   registerDoSNOW(cl)
-#  registerDoParallel(cl)
   
-  clusterExport(cl, c("crunchRF", "prepareTrainingSet", "prepareTrainingSetByCols", "funOmitNA"))
-    
-  res <- foreach(ind = iter(1:nrow(tunesPopulation)), .packages = c("randomForest")) %dopar% crunchRF(ind, tunesPopulation, trainingSet)
+  clusterExport(cl, c("crunchRF", "prepareTrainingSet", "prepareTrainingSetByCols", "funOmitNA", "reportProgress"))
+  
+  startTime <- Sys.time()
+  res <- foreach(ind = iter(1:nrow(tunesPopulation)), .packages = c("randomForest")) %dopar% crunchRF(ind, tunesPopulation, trainingSet, startTime)
     
   for(j in res) {
     tunesPopulation[tunesPopulation$index == j[1], 4:6] <- j[2:4]
   }
   
   stopCluster(cl)
-  
   tunesPopulation
 }
 
-crunchRF <- function(ind, tunesPopulation, trainingSet){
+crunchRF <- function(ind, tunesPopulation, trainingSet, startTime){
   
-  print(ind)
   cs <- tunesPopulation[ind,]
   
   trainingSetList <- prepareTrainingSet(trainingSet, trainingSet[,paste("trade", cs[1], sep = ".")], testSample = 0.2)
   trainData <- trainingSetList[[1]]
   testData <- trainingSetList[[2]]
   
-  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = 10, sampsize = as.integer(cs[2]), nodesize = as.integer(cs[3]))
+  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = 50, sampsize = as.integer(cs[2]), nodesize = as.integer(cs[3]))
   
   predicted <- predict(rfModel, newdata = testData)
   predictionTable <- table(testData$Trade, predicted)
@@ -57,5 +53,7 @@ crunchRF <- function(ind, tunesPopulation, trainingSet){
   runCount <- runCount + 1
   
   newCS <- c(cs[7], (buyRatio + prevB)/runCount, (selRatio + prevS), runCount)
+  reportProgress(ind, nrow(tunesPopulation), startTime = startTime)
+  
   newCS
 }
