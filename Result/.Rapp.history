@@ -1,0 +1,3 @@
+load("/Users/sergiy/Dropbox/Projects/DATA/CurMod2/Result/tuned10000_nt50.rda")
+t <- load("/Users/sergiy/Dropbox/Projects/DATA/CurMod2/Result/tuned10000_nt50.rda")
+t

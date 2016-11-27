@@ -17,4 +17,18 @@ Now need to get rid of outer loop and add progress tracker to the foreach
 this reduces tunesPopulation from 784320 to 142416.
 Need to run here.
 
-6.
+best 30 show
+t 370-400; ss 21000-48000; mn 28-99
+
+
+
+
+6. Create merge function which can merge 2 result sets applying means correctly
+
+7. Drop features. Periods first until you get say 10 periods left
+Then drop by column.
+Drop means running the population then picking best n-1 and running again on n-1 then repeat.
+
+2
+0.5845490 72
+0.5700291 28

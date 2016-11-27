@@ -16,12 +16,60 @@ tunesPopulation <- expand.grid(
   runCount = 0
 )
 
-tunesPopulation$index <- 1:nrow(tunesPopulation)
 
-print.size(tunesPopulation)
+tunesPopulation <- addUniqueKeyToTunes(tunesPopulation)
 
-tunesSample <- sampleDF(tunesPopulation, 4000)
 
-tuned <- crunchTunes(EURUSDm30_trade_150_1000_10, tunesSample)
+t4 <- reducer(EURUSDm30_trade_150_1000_10, t4, 10)
 
-#iRich crunches 40 50tree forests in 10 min
+#reduce features
+nVector <- seq(2,100,2)
+tset <- makeTrainingSet(EURUSDm30_trade_150_1000_10)
+
+nTunes <- data.frame(
+  nVector <- nVector,
+  buyScore <- double(length(nVector)),
+  selScore <- double(length(nVector)),
+  runcount <- 0
+)
+
+colnames(nTunes) <- c("nVector", "buyScore", "selScore", "runCount")
+
+nTunes <- calcNTunes(tset, nTunes)
+print(1)
+nTunes <- calcNTunes(tset, nTunes)
+print(2)
+nTunes <- calcNTunes(tset, nTunes)
+print(3)
+nTunes <- calcNTunes(tset, nTunes)
+print(4)
+nTunes <- calcNTunes(tset, nTunes)
+print(5)
+nTunes <- calcNTunes(tset, nTunes)
+print(6)
+nTunes <- calcNTunes(tset, nTunes)
+print(7)
+nTunes <- calcNTunes(tset, nTunes)
+print(8)
+nTunes <- calcNTunes(tset, nTunes)
+print(9)
+nTunes <- calcNTunes(tset, nTunes)
+print(10)
+nTunes <- calcNTunes(tset, nTunes)
+print(11)
+nTunes <- calcNTunes(tset, nTunes)
+print(12)
+nTunes <- calcNTunes(tset, nTunes)
+print(13)
+nTunes <- calcNTunes(tset, nTunes)
+print(14)
+nTunes <- calcNTunes(tset, nTunes)
+print(15)
+nTunes <- calcNTunes(tset, nTunes)
+print(16)
+nTunes <- calcNTunes(tset, nTunes)
+print(17)
+nTunes <- calcNTunes(tset, nTunes)
+print(18)
+
+
