@@ -89,17 +89,18 @@ reducer <- function(x, tunes, times){
   library(data.table)
   setDT(tunes)
   n <- nrow(tunes)
-  smp <- c(1:12)
   
   startTime <- Sys.time()
   current <- 1
   while(current <= times){
     
+    smp <-  as.integer(c(runif(6, 1, 24), runif(6, 24, 500)))
+    
     setDT(tunes)
     tunes <- tunes[order(-buyScore)]
     crunchSettings <- tunes[smp,]
     
-    print(rbind(head(crunchSettings, 12)))
+    print(head(tunes))
     
     crunchSettings$buyScore <- NA
     crunchSettings$selScore <- NA
@@ -114,13 +115,34 @@ reducer <- function(x, tunes, times){
     current <- current + 1
   }
   
+  print(startTime)
+  print(Sys.time())
   tunes
 }
 
-featureReducer <- function(x, tunes, times, trade = 380, sampSize = 34500, minNode = 50, nVector = seq(2, 100, 2)){
+featureReducer <- function(tset, tunes, times){
   
+  current <- 1
+  startTime <- Sys.time()
   while(current <= times){
-    tunes <- tunes[odrer(-buy)]
+    
+    smp <-  as.integer(c(runif(6, 1, 12), runif(6, 13, 50)))
+    
+    setDT(nTunes)
+    nTunes <- nTunes[order(-buyScore)]
+    crunchSettings <- nTunes
+    setDF(nTunes)
+    
+    print(head(crunchSettings))
+    
+    crunchSettings$buyScore <- NA
+    crunchSettings$selScore <- NA
+    crunchSettings$runCount <- 0
+    
+    nTunes <- calcNTunes(tset, crunchSettings)
+    
+    reportProgress(current, times, startTime)
+    current <- current + 1
   }
   
 }
@@ -135,6 +157,7 @@ calcNTunes <- function(trainingSet, nTunes){
   smpSize <- nrow(nTunes)
   print(paste("smpSize", smpSize))
   
+  library(parallel)
   library(foreach)
   library(doSNOW)
   library(iterators)
