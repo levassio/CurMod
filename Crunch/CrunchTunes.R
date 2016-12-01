@@ -63,6 +63,25 @@ crunchRF <- function(ind, tunesPopulation, trainingSet, startTime){
   newCS
 }
 
+mergeResultSetsNTunes <- function(df1, df2){
+  
+  bound <- rbind(df1, df2)
+  bound$buyScore <- bound$buyScore * bound$runCount
+  bound$selScore <- bound$selScore * bound$runCount
+  
+  library(data.table)
+  setDT(bound)
+  
+  res <- bound[, .(buyScore = sum(buyScore), selScore = sum(selScore), runCount = sum(runCount)), by =.(nVector)]
+  
+  res$buyScore <- res$buyScore / res$runCount
+  res$selScore <- res$selScore / res$runCount
+  
+  setDF(res)
+  
+  res[,c("nVector", "buyScore", "selScore", "runCount")]
+}
+
 mergeResultSets <- function(df1, df2){
   
   bound <- rbind(df1, df2)
@@ -94,7 +113,7 @@ reducer <- function(x, tunes, times){
   current <- 1
   while(current <= times){
     
-    smp <-  as.integer(c(runif(6, 1, 24), runif(6, 24, 500)))
+    smp <-  as.integer(c(sample(1:24, 6), sample(24:n, 6)))
     
     setDT(tunes)
     tunes <- tunes[order(-buyScore)]
@@ -120,31 +139,65 @@ reducer <- function(x, tunes, times){
   tunes
 }
 
-featureReducer <- function(tset, tunes, times){
+featureTuner <- function(tset, nTunes, times, isLowToHigh = FALSE){
+  
+  setDT(nTunes)
+  nTunes <- nTunes[order(-buyScore)]
   
   current <- 1
-  startTime <- Sys.time()
+  overallStartTime <- Sys.time()
+  
+  library(parallel)
+  library(foreach)
+  library(doSNOW)
+  library(iterators)
+  
+  cores <- detectCores()
+  cl <- makePSOCKcluster(cores, outfile = "")
+  registerDoSNOW(cl)
+  
+  
+  
+  clusterExport(cl, c("crunchRFNVec", "prepareTrainingSet", "prepareTrainingSetByCols", "funOmitNA", "reportProgress"))
+  
   while(current <= times){
     
-    smp <-  as.integer(c(runif(6, 1, 12), runif(6, 13, 50)))
+    smp <-  as.integer(c(sample(1:24, 12), sample(25:nrow(nTunes), 12)))
     
-    setDT(nTunes)
-    nTunes <- nTunes[order(-buyScore)]
-    crunchSettings <- nTunes
-    setDF(nTunes)
+    print(head(nTunes))
     
-    print(head(crunchSettings))
+    crunchSettings <- nTunes[smp,]
+    setDF(crunchSettings)
     
     crunchSettings$buyScore <- NA
     crunchSettings$selScore <- NA
     crunchSettings$runCount <- 0
     
-    nTunes <- calcNTunes(tset, crunchSettings)
+    print("sample:")
+    print(smp)
     
-    reportProgress(current, times, startTime)
+    workerStartTime <- Sys.time()
+    res <- foreach(ind = iter(1:nrow(crunchSettings)), .packages = c("randomForest")) %dopar% crunchRFNVec(ind, crunchSettings, tset, workerStartTime, isLowToHigh)
+    
+    for(j in res) {
+      crunchSettings[crunchSettings$nVector == j[1], 2:4] <- j[2:4]
+    }
+    
+    nTunes <- mergeResultSetsNTunes(nTunes, crunchSettings)
+    
+    reportProgress(current, times, overallStartTime)
     current <- current + 1
+    
+    setDT(nTunes)
+    nTunes <- nTunes[order(-buyScore)]
   }
   
+  stopCluster(cl)
+  
+  print(overallStartTime)
+  print(Sys.time())
+  
+  nTunes
 }
 
 addUniqueKeyToTunes <- function(t){
@@ -152,44 +205,35 @@ addUniqueKeyToTunes <- function(t){
   t
 }
 
-calcNTunes <- function(trainingSet, nTunes){
-  
-  smpSize <- nrow(nTunes)
-  print(paste("smpSize", smpSize))
-  
-  library(parallel)
-  library(foreach)
-  library(doSNOW)
-  library(iterators)
-  
-  cores <- detectCores(logical = TRUE)
-  cl <- makePSOCKcluster(cores, outfile = "")
-  registerDoSNOW(cl)
-  
-  clusterExport(cl, c("crunchRFNVec", "prepareTrainingSet", "prepareTrainingSetByCols", "funOmitNA", "reportProgress"))
-  
-  startTime <- Sys.time()
-  res <- foreach(ind = iter(1:nrow(nTunes)), .packages = c("randomForest")) %dopar% crunchRFNVec(ind, nTunes, trainingSet, startTime)
-  
-  stopCluster(cl)
-  
-  for(j in res) {
-    nTunes[nTunes$nVector == j[1], 2:4] <- j[2:4]
-  }
-  
-  print(startTime)
-  print(Sys.time())
-  
-  nTunes
-}
-
-crunchRFNVec <- function(ind, nTunes, trainingSet, startTime){
+crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, isLowToHigh = FALSE){
   
   curTune <- nTunes[ind,]
+  indexed <- as.integer(curTune[1])
   
-  drops <- paste(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), curTune[1], sep = ".")
-  
-  trainingSet <- trainingSet[, !(names(trainingSet) %in% drops)]
+  if(isLowToHigh){
+    
+    n <- integer(4)
+    n[1] <- indexed %/% 1000000
+    indexed <- indexed - n[1] * 1000000
+    n[2] <- indexed %/% 10000
+    indexed <- indexed - n[2] * 10000
+    n[3] <- indexed %/% 100
+    indexed <- indexed - n[3] * 100
+    n[4] <- indexed
+    indexed <- as.integer(curTune[1])
+    
+    remainCols <- character(4*4 + 1)
+    remainCols[1] <- "trade.380"
+    
+    exgrid <- expand.grid(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), n)
+    remainCols[2:17] <- paste(exgrid[,1], exgrid[,2], sep = ".")
+    
+    trainingSet <- trainingSet[, remainCols]
+  }
+  else{
+    drops <- paste(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), indexed, sep = ".")
+    trainingSet <- trainingSet[, !(names(trainingSet) %in% drops)]  
+  }
   
   trainingSetList <- prepareTrainingSet(trainingSet, trainingSet[,paste("trade", 380, sep = ".")], testSample = 0.2)
   trainData <- trainingSetList[[1]]
@@ -207,8 +251,8 @@ crunchRFNVec <- function(ind, nTunes, trainingSet, startTime){
   prevS <- ifelse(is.na(curTune[3]), 0, as.double(curTune[3]) * runCount)
   runCount <- runCount + 1
   
-  newCS <- c(curTune[1], (buyRatio + prevB)/runCount, (selRatio + prevS)/runCount, runCount)
-  reportProgress(ind, nrow(nTunes), startTime = startTime)
+  newCS <- c(indexed, (buyRatio + prevB)/runCount, (selRatio + prevS)/runCount, runCount)
+  reportProgress(ind, nrow(nTunes), startTime = startTime, indexed)
   
   newCS
 }

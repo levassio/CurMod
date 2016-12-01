@@ -23,7 +23,7 @@ tunesPopulation <- addUniqueKeyToTunes(tunesPopulation)
 tTemp <- reducer(EURUSDm30_trade_150_1000_10, t4, 2)
 
 #reduce features
-nVector <- seq(2,100,2)
+nVector <- seq(2,99,1)
 tset <- makeTrainingSet(EURUSDm30_trade_150_1000_10)
 
 nTunes <- data.frame(
