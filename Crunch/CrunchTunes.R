@@ -74,8 +74,8 @@ mergeResultSetsNTunes <- function(df1, df2){
   
   res <- bound[, .(buyScore = sum(buyScore), selScore = sum(selScore), runCount = sum(runCount)), by =.(nVector)]
   
-  res$buyScore <- res$buyScore / res$runCount
-  res$selScore <- res$selScore / res$runCount
+  res$buyScore <- ifelse(res$runCount > 0, res$buyScore / res$runCount, 0)
+  res$selScore <- ifelse(res$runCount > 0, res$selScore / res$runCount, 0)
   
   setDF(res)
   
@@ -205,6 +205,39 @@ addUniqueKeyToTunes <- function(t){
   t
 }
 
+encodePeriods <- function(nVector, take = 4) {
+  cs <- data.frame(t(combn(nVector, take)))
+  
+  res <- integer(nrow(cs))
+  
+  for (t in 1:take){
+    res <- res + cs[t] * 10 ^ ((take - t) * 2)
+  }
+  
+  if(FALSE){
+    cs$ind <- cs$X1 * 1000000 + cs$X2 * 10000 + cs$X3 * 100 + cs$X4
+    as.integer(cs$ind)
+  }
+  
+  res
+}
+
+decodeColNames <- function(encoded){
+  
+  periods <- ceiling(log10(encoded) / 2)
+  n <- integer(periods)
+  
+  for(period in 1:periods) {
+    zeros <- 10 ^ ((periods - period) * 2)
+    n[period] <- encoded %/% zeros
+    encoded <- encoded - n[period] * zeros
+  }
+  
+  exgrid <- expand.grid(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), n)
+  result <- paste(exgrid[,1], exgrid[,2], sep = ".")
+  result
+}
+
 crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, isLowToHigh = FALSE){
   
   curTune <- nTunes[ind,]
@@ -212,21 +245,12 @@ crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, isLowToHigh = FALS
   
   if(isLowToHigh){
     
-    n <- integer(4)
-    n[1] <- indexed %/% 1000000
-    indexed <- indexed - n[1] * 1000000
-    n[2] <- indexed %/% 10000
-    indexed <- indexed - n[2] * 10000
-    n[3] <- indexed %/% 100
-    indexed <- indexed - n[3] * 100
-    n[4] <- indexed
-    indexed <- as.integer(curTune[1])
+    remainPredictorCols <- decodeColNames(indexed)
+    remainColsLength <- length(remainPredictorCols) + 1
     
-    remainCols <- character(4*4 + 1)
+    remainCols <- character(remainColsLength)
     remainCols[1] <- "trade.380"
-    
-    exgrid <- expand.grid(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), n)
-    remainCols[2:17] <- paste(exgrid[,1], exgrid[,2], sep = ".")
+    remainCols[2:remainColsLength] <- remainPredictorCols
     
     trainingSet <- trainingSet[, remainCols]
   }

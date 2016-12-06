@@ -1,3 +1,6 @@
+con <- url("https://dl.dropboxusercontent.com/u/30352637/TrainingData/EURUSDm30_trade_150_1000_10.rda")
+load(con)
+
 tunesPopulation <- expand.grid(
   trade = seq(150, 1000, 10),
   sampSize = seq(3000, 50000, 500),
@@ -22,24 +25,25 @@ tunesPopulation <- addUniqueKeyToTunes(tunesPopulation)
 
 tTemp <- reducer(EURUSDm30_trade_150_1000_10, t4, 2)
 
-#reduce features
+#expand features
 nVector <- seq(2,99,1)
-tset <- makeTrainingSet(EURUSDm30_trade_150_1000_10)
+tset <- makeTrainingSet(EURUSDm30_trade_150_1000_10, nVector)
 
-nTunes <- data.frame(
-  nVector <- nVector,
-  buyScore <- double(length(nVector)),
-  selScore <- double(length(nVector)),
+encoded <- encodePeriods(nVector, 4)
+smp <- sample(encoded, 10000)
+
+nTunesLowToHigh <- data.frame(
+  nVector <- smp,
+  buyScore <- double(length(smp)),
+  selScore <- double(length(smp)),
   runcount <- 0
 )
 
-colnames(nTunes) <- c("nVector", "buyScore", "selScore", "runCount")
+colnames(nTunesLowToHigh) <- c("nVector", "buyScore", "selScore", "runCount")
+
+nTunesLowToHigh <- featureTuner(tset, nTunesLowToHigh, 240, TRUE)
 
 
-nTunes <- calcNTunes(tset, nTunes)
-print(1)
-
-nTunesTmp <- featureReducer(tset, nTunes, 2)
 
 
 

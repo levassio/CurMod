@@ -32,3 +32,10 @@ Drop means running the population then picking best n-1 and running again on n-1
 2
 0.5845490 72
 0.5700291 28
+
+4
+1    1 00 00 00
+2   1 00 00
+3   1 00
+4   1
+
