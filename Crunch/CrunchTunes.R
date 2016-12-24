@@ -1,4 +1,4 @@
-makeTrainingSet <- function(x, nVector = seq(2,100,2)){
+makeTrainingSet <- function(x, nVector = seq(2,100,1)){
   
   trainingSet <- x
   
@@ -139,7 +139,7 @@ reducer <- function(x, tunes, times){
   tunes
 }
 
-featureTuner <- function(tset, nTunes, times, isLowToHigh = FALSE){
+featureTuner <- function(tset, nTunes, times, mode = "D"){
   
   setDT(nTunes)
   nTunes <- nTunes[order(-buyScore)]
@@ -156,15 +156,14 @@ featureTuner <- function(tset, nTunes, times, isLowToHigh = FALSE){
   cl <- makePSOCKcluster(cores, outfile = "")
   registerDoSNOW(cl)
   
-  
-  
-  clusterExport(cl, c("crunchRFNVec", "prepareTrainingSet", "prepareTrainingSetByCols", "funOmitNA", "reportProgress"))
+  clusterExport(cl, c("crunchRFNVec", "prepareTrainingSet", "prepareTrainingSetByCols", "funOmitNA", "reportProgress", "decodeColNames"))
   
   while(current <= times){
     
-    smp <-  as.integer(c(sample(1:24, 12), sample(25:nrow(nTunes), 12)))
+    smp <-  as.integer(c(sample(1:24, 12), sample(25:100, 12), sample(101:nrow(nTunes), 72)))
+#    smp <- 1:96
     
-    print(head(nTunes))
+    print(head(nTunes, 24))
     
     crunchSettings <- nTunes[smp,]
     setDF(crunchSettings)
@@ -177,7 +176,7 @@ featureTuner <- function(tset, nTunes, times, isLowToHigh = FALSE){
     print(smp)
     
     workerStartTime <- Sys.time()
-    res <- foreach(ind = iter(1:nrow(crunchSettings)), .packages = c("randomForest")) %dopar% crunchRFNVec(ind, crunchSettings, tset, workerStartTime, isLowToHigh)
+    res <- foreach(ind = iter(1:nrow(crunchSettings)), .packages = c("randomForest")) %dopar% crunchRFNVec(ind, crunchSettings, tset, workerStartTime, mode)
     
     for(j in res) {
       crunchSettings[crunchSettings$nVector == j[1], 2:4] <- j[2:4]
@@ -206,12 +205,12 @@ addUniqueKeyToTunes <- function(t){
 }
 
 encodePeriods <- function(nVector, take = 4) {
-  cs <- data.frame(t(combn(nVector, take)))
   
+  cs <- data.frame(t(combn(nVector, take)))
   res <- integer(nrow(cs))
   
   for (t in 1:take){
-    res <- res + cs[t] * 10 ^ ((take - t) * 2)
+    res <- res + as.integer(cs[,t]) * 10 ^ ((take - t) * 2)
   }
   
   if(FALSE){
@@ -222,9 +221,9 @@ encodePeriods <- function(nVector, take = 4) {
   res
 }
 
-decodeColNames <- function(encoded){
+decodeColNames <- function(encoded, withNames = TRUE){
   
-  periods <- ceiling(log10(encoded) / 2)
+  periods <- ifelse(encoded == 1, 1, ceiling(log10(encoded) / 2))
   n <- integer(periods)
   
   for(period in 1:periods) {
@@ -233,37 +232,60 @@ decodeColNames <- function(encoded){
     encoded <- encoded - n[period] * zeros
   }
   
-  exgrid <- expand.grid(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), n)
-  result <- paste(exgrid[,1], exgrid[,2], sep = ".")
-  result
+  if(withNames){
+    exgrid <- expand.grid(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), n)
+    result <- paste(exgrid[,1], exgrid[,2], sep = ".")
+    result
+  } else {
+    n
+  }
 }
 
-crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, isLowToHigh = FALSE){
+crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, mode = "DROP_BY_PERIOD"){
   
   curTune <- nTunes[ind,]
   indexed <- as.integer(curTune[1])
   
-  if(isLowToHigh){
-    
-    remainPredictorCols <- decodeColNames(indexed)
-    remainColsLength <- length(remainPredictorCols) + 1
-    
-    remainCols <- character(remainColsLength)
-    remainCols[1] <- "trade.380"
-    remainCols[2:remainColsLength] <- remainPredictorCols
-    
-    trainingSet <- trainingSet[, remainCols]
-  }
-  else{
-    drops <- paste(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), indexed, sep = ".")
-    trainingSet <- trainingSet[, !(names(trainingSet) %in% drops)]  
-  }
+  switch(mode,
+         I = {
+           # INCREMENT BY PERIOD
+           remainPredictorCols <- decodeColNames(indexed)
+           remainColsLength <- length(remainPredictorCols) + 1
+           
+           remainCols <- character(remainColsLength)
+           remainCols[1] <- "trade.380"
+           remainCols[2:remainColsLength] <- remainPredictorCols
+           
+           trainingSet <- trainingSet[, remainCols]
+           
+         },
+         D = {
+           # DROP BY PERIOD
+           drops <- paste(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), indexed, sep = ".")
+           trainingSet <- trainingSet[, !(names(trainingSet) %in% drops)]  
+           
+         },
+         D1 = {
+           # DROP ONE BY ONE
+           bestPeriods <- 2798597
+           predictorCols <- decodeColNames(bestPeriods)
+           drops = decodeColNames(ind, withNames = FALSE)
+           predictorCols <- predictorCols[-drops]
+           
+           colsLength <- length(predictorCols) + 1
+           
+           remainCols <- character(colsLength)
+           remainCols[1] <- "trade.380"
+           remainCols[2:colsLength] <- predictorCols
+           
+           trainingSet <- trainingSet[, remainCols]
+         })
   
   trainingSetList <- prepareTrainingSet(trainingSet, trainingSet[,paste("trade", 380, sep = ".")], testSample = 0.2)
   trainData <- trainingSetList[[1]]
   testData <- trainingSetList[[2]]
   
-  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = 50, sampsize = 47000, nodesize = 50)
+  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = 200, sampsize = 47000, nodesize = 50)
   
   predicted <- predict(rfModel, newdata = testData)
   predictionTable <- table(testData$Trade, predicted)
