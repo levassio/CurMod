@@ -51,7 +51,7 @@ colnames(nTunesLowToHigh345) <- c("nVector", "buyScore", "selScore", "runCount")
 
 nTunesLowToHigh345 <- featureTuner(tset, nTunesLowToHigh345, 2, "I")
 
-#reduce features
+#reduce features from 16
 
 predictors <- decodeColNames(2798597)
 predictorsLength <- length(predictors)
@@ -63,18 +63,44 @@ encoded3 <- encodePeriods(vec, 3)
 
 smp <- c(encoded1, encoded2, encoded3)
 
-nTunesDropOnea <- data.frame(
+nTunesDropOne <- data.frame(
   nVector <- smp,
   buyScore <- double(length(smp)),
   selScore <- double(length(smp)),
   runcount <- 0
 )
 
-colnames(nTunesDropOnea) <- c("nVector", "buyScore", "selScore", "runCount")
+colnames(nTunesDropOne) <- c("nVector", "buyScore", "selScore", "runCount")
 
-nTunesDropOnea <- featureTuner(tset, nTunesDropOnea, 72, "D1")
+nTunesDropOne <- featureTuner(tset, nTunesDropOne, 30, "D1")
+x <- featureTuner(tset, x, 30, "D1")
 
-#pass a runner function to the featureTuner
-#runner function should accept decoder function which should decode column names and cut the training set accordingly
-#make sure this setup can work both for singlte feature reduction and for 345 feature increment
+#retune RF settings
+tunesPopulation <- expand.grid(
+  nTree = c(15, 20, 25),
+  nodesize = seq(1, 99, 2),
+  sampsize = seq(10, 99, 2)
+)
 
+encodedTunes <- tunesPopulation$nTree * 10000 + tunesPopulation$nodesize * 100 + tunesPopulation$sampsize
+
+resRetuneRF <- data.frame(
+  encodedTunes,
+  buyScore <- double(length(encodedTunes)),
+  selScore <- double(length(encodedTunes)),
+  runcount <- 0
+)
+colnames(resRetuneRF) <- c("nVector", "buyScore", "selScore", "runCount")
+
+initialLength <- nrow(resRetuneRF)
+
+for(i in 1:5){
+  print(i)
+  resRetuneRF <- featureTuner(tset, resRetuneRF, 1, "TF")
+  setDT(resRetuneRF)
+  resRetuneRF <- resRetuneRF[runCount < 2 | totalScore > 1.1]
+  resRetuneRF <- resRetuneRF[runCount < 4 | totalScore > 1.11]
+  resRetuneRF <- resRetuneRF[runCount < 8 | totalScore > 1.122]
+}
+
+print(paste("dropped", initialLength - nrow(resRetuneRF)))

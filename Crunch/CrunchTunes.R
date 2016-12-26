@@ -139,10 +139,12 @@ reducer <- function(x, tunes, times){
   tunes
 }
 
-featureTuner <- function(tset, nTunes, times, mode = "D"){
+featureTuner <- function(tset, nTunes, times, mode = "TF"){
+  
+  nTunes$totalScore <- nTunes$buyScore + nTunes$selScore
   
   setDT(nTunes)
-  nTunes <- nTunes[order(-buyScore)]
+  nTunes <- nTunes[order(-totalScore)]
   
   current <- 1
   overallStartTime <- Sys.time()
@@ -160,8 +162,10 @@ featureTuner <- function(tset, nTunes, times, mode = "D"){
   
   while(current <= times){
     
-    smp <-  as.integer(c(sample(1:24, 12), sample(25:100, 12), sample(101:nrow(nTunes), 72)))
-#    smp <- 1:96
+    smpVector <- 1:nrow(nTunes)
+    smpProbVector <- smpVector ^ (-.5) * .9
+    
+    smp <-  as.integer(sample(smpVector, min(c(96, nrow(nTunes))), prob = smpProbVector))
     
     print(head(nTunes, 24))
     
@@ -187,8 +191,10 @@ featureTuner <- function(tset, nTunes, times, mode = "D"){
     reportProgress(current, times, overallStartTime)
     current <- current + 1
     
+    nTunes$totalScore <- nTunes$buyScore + nTunes$selScore
+    
     setDT(nTunes)
-    nTunes <- nTunes[order(-buyScore)]
+    nTunes <- nTunes[order(-totalScore)]
   }
   
   stopCluster(cl)
@@ -241,51 +247,55 @@ decodeColNames <- function(encoded, withNames = TRUE){
   }
 }
 
-crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, mode = "DROP_BY_PERIOD"){
+crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, mode = "TF"){
+  
+  #browser()
   
   curTune <- nTunes[ind,]
-  indexed <- as.integer(curTune[1])
+  encodedRunSettings <- as.integer(curTune[1])
+  
+  #defaults
+  
+  rfTunes <- 208450   #ntree, sampsize, nodesize
+  bestPeriods <- 2798597
+  dropColumns <- 12
   
   switch(mode,
          I = {
            # INCREMENT BY PERIOD
-           remainPredictorCols <- decodeColNames(indexed)
-           remainColsLength <- length(remainPredictorCols) + 1
-           
-           remainCols <- character(remainColsLength)
-           remainCols[1] <- "trade.380"
-           remainCols[2:remainColsLength] <- remainPredictorCols
-           
-           trainingSet <- trainingSet[, remainCols]
-           
+           bestPeriods <- encodedRunSettings
          },
-         D = {
-           # DROP BY PERIOD
-           drops <- paste(c("volatil", "sma.angle", "aboveSMAAD", "aboveSMA"), indexed, sep = ".")
-           trainingSet <- trainingSet[, !(names(trainingSet) %in% drops)]  
-           
+         TF = {
+           #TUNE FOREST
+           rfTunes <- encodedRunSettings
          },
          D1 = {
            # DROP ONE BY ONE
-           bestPeriods <- 2798597
-           predictorCols <- decodeColNames(bestPeriods)
-           drops = decodeColNames(ind, withNames = FALSE)
-           predictorCols <- predictorCols[-drops]
            
-           colsLength <- length(predictorCols) + 1
-           
-           remainCols <- character(colsLength)
-           remainCols[1] <- "trade.380"
-           remainCols[2:colsLength] <- predictorCols
-           
-           trainingSet <- trainingSet[, remainCols]
+           dropColumns = encodedRunSettings
          })
+  
+  predictorCols <- decodeColNames(bestPeriods)
+  dropColumns = decodeColNames(dropColumns, withNames = FALSE)
+  predictorCols <- predictorCols[-dropColumns]
+  colsLength <- length(predictorCols) + 1
+  
+  remainCols <- character(colsLength)
+  remainCols[1] <- "trade.380"
+  remainCols[2:colsLength] <- predictorCols
+  
+  trainingSet <- trainingSet[, remainCols]
+  
+  rfTunes <- decodeColNames(rfTunes, withNames = FALSE)
+  ntree <- rfTunes[1] * 10
+  sampsize <- rfTunes[2]
+  nodesize <- rfTunes[3]
   
   trainingSetList <- prepareTrainingSet(trainingSet, trainingSet[,paste("trade", 380, sep = ".")], testSample = 0.2)
   trainData <- trainingSetList[[1]]
   testData <- trainingSetList[[2]]
   
-  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = 200, sampsize = 47000, nodesize = 50)
+  rfModel <- randomForest(Trade ~ ., data = trainData, ntree = ntree, sampsize = (sampsize / 100) * nrow(trainData), nodesize = nodesize)
   
   predicted <- predict(rfModel, newdata = testData)
   predictionTable <- table(testData$Trade, predicted)
@@ -297,8 +307,8 @@ crunchRFNVec <- function(ind, nTunes, trainingSet, startTime, mode = "DROP_BY_PE
   prevS <- ifelse(is.na(curTune[3]), 0, as.double(curTune[3]) * runCount)
   runCount <- runCount + 1
   
-  newCS <- c(indexed, (buyRatio + prevB)/runCount, (selRatio + prevS)/runCount, runCount)
-  reportProgress(ind, nrow(nTunes), startTime = startTime, indexed)
+  newCS <- c(encodedRunSettings, (buyRatio + prevB)/runCount, (selRatio + prevS)/runCount, runCount)
+  reportProgress(ind, nrow(nTunes), startTime = startTime, encodedRunSettings)
   
   newCS
 }
