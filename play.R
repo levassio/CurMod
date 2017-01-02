@@ -100,7 +100,11 @@ for(i in 1:5){
   setDT(resRetuneRF)
   resRetuneRF <- resRetuneRF[runCount < 2 | totalScore > 1.1]
   resRetuneRF <- resRetuneRF[runCount < 4 | totalScore > 1.11]
-  resRetuneRF <- resRetuneRF[runCount < 8 | totalScore > 1.122]
+  resRetuneRF <- resRetuneRF[runCount < 7 | totalScore > 1.122]
+  resRetuneRF <- resRetuneRF[runCount < 15 | totalScore > 1.124]
+  print(paste("dropped", initialLength - nrow(resRetuneRF)))
+  initialLength <- nrow(resRetuneRF)
 }
 
-print(paste("dropped", initialLength - nrow(resRetuneRF)))
+#test on unseen data
+

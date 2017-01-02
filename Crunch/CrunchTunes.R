@@ -228,6 +228,7 @@ encodePeriods <- function(nVector, take = 4) {
 }
 
 decodeColNames <- function(encoded, withNames = TRUE){
+  #change to pass in names vector if need names
   
   periods <- ifelse(encoded == 1, 1, ceiling(log10(encoded) / 2))
   n <- integer(periods)

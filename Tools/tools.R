@@ -108,7 +108,7 @@ prepareTrainingSet <- function(x, tradeColumn, testSample = .2){
   
   l <- nrow(x)
   
-  testSampleStart <- l - (l * testSample)
+  testSampleStart <- as.integer(l - ceiling(l * testSample))
   testSample <- testSampleStart:l
   
   testX <- x[testSample,]
